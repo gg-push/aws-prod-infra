@@ -42,3 +42,8 @@ output "db_endpoint" {
   description = "RDS PostgreSQL endpoint."
   value       = module.rds.db_endpoint
 }
+
+output "alerts_topic_arn" {
+  description = "SNS alerts topic ARN."
+  value       = module.alerts.topic_arn
+}

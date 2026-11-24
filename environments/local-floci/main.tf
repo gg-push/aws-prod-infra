@@ -27,6 +27,15 @@ module "iam" {
   enable_github_oidc        = false
 }
 
+module "alerts" {
+  source = "../../modules/alerts"
+
+  name_prefix           = local.name_prefix
+  account_id            = "000000000000"
+  enable_kms_encryption = false
+  enable_topic_policy   = true
+}
+
 module "rds" {
   source = "../../modules/rds"
 
@@ -63,6 +72,7 @@ module "compute" {
   log_group_name                = local.log_group_name
   log_retention_days            = 7
   enable_cloudwatch_alarms      = var.enable_cloudwatch_alarms
+  alarm_actions                 = [module.alerts.topic_arn]
   enable_cloudwatch_agent       = false
   db_endpoint                   = module.rds.db_endpoint
 }

@@ -19,12 +19,14 @@ jobs:
   lint-and-validate:
     name: Format, Validate & IaC Security Scan
     runs-on: ubuntu-latest
+    env:
+      TF_PLUGIN_CACHE_DIR: /tmp/tf-plugin-cache
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.15.0"
 
@@ -33,14 +35,18 @@ jobs:
 
       - name: Validate root modules
         run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
           for dir in bootstrap environments/local-floci environments/staging environments/prod; do
             echo "Validating $dir..."
             terraform -chdir="$dir" init -backend=false -input=false
             terraform -chdir="$dir" validate
           done
 
+      - name: Run Terraform unit & contract tests
+        run: make test
+
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
+        uses: terraform-linters/setup-tflint@v6
 
       - name: Run TFLint
         run: |
@@ -69,10 +75,10 @@ jobs:
           FLOCI_HOSTNAME: localhost
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.15.0"
 
@@ -98,6 +104,37 @@ jobs:
           terraform -chdir=environments/local-floci init -input=false
           terraform -chdir=environments/local-floci apply -auto-approve -input=false
 
+      - name: Verify zero-drift idempotency
+        env:
+          TF_VAR_db_password: LocalCiTestPassword123!
+        run: |
+          terraform -chdir=environments/local-floci plan -out=replan.bin -input=false >/dev/null
+          terraform -chdir=environments/local-floci show -json replan.bin | python3 -c '
+          import json, sys
+          plan = json.load(sys.stdin)
+          unexpected = []
+          for rc in plan.get("resource_changes", []):
+              actions = rc["change"]["actions"]
+              if actions == ["no-op"]:
+                  continue
+              before = rc["change"].get("before") or {}
+              after = rc["change"].get("after") or {}
+              diffs = {k: (before.get(k), after.get(k)) for k in set(before) | set(after) if before.get(k) != after.get(k)}
+              # Known Floci 2.5.0 quirk: returns "000000000000/sg-..." on same-account SG references.
+              if (
+                  actions == ["update"]
+                  and rc["type"] == "aws_vpc_security_group_ingress_rule"
+                  and list(diffs.keys()) == ["referenced_security_group_id"]
+              ):
+                  prev_sg, next_sg = diffs["referenced_security_group_id"]
+                  if prev_sg == "000000000000/" + str(next_sg):
+                      continue
+              unexpected.append((rc["address"], actions, diffs))
+          assert not unexpected, f"Unexpected Terraform plan drift: {unexpected}"
+          print("Zero-drift idempotency verified across all provisioned resources")
+          '
+          rm -f environments/local-floci/replan.bin
+
       - name: Verify provisioned resources via AWS CLI
         run: bash scripts/verify-local.sh
 
@@ -118,16 +155,16 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure AWS Credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.15.0"
 
@@ -141,4 +178,4 @@ jobs:
             -backend-config="region=us-east-1" \
             -backend-config="encrypt=true" \
             -backend-config="use_lockfile=true"
-          terraform -chdir=environments/staging plan -no-color
+          terraform -chdir=environments/staging plan -var="state_bucket_name=${{ vars.TF_STATE_BUCKET }}" -no-color

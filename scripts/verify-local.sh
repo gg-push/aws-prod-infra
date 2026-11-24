@@ -177,4 +177,15 @@ assert not missing, f"Missing CloudWatch alarms: {missing}"
 print(f"CloudWatch Alarms verified: {sorted(alarms)}")
 ' "$NAME_PREFIX" <<< "$ALARMS_JSON"
 
+echo "=== 10. Verifying SNS Alerts Topic ==="
+TOPICS_JSON="$(aws_local sns list-topics --output json)"
+python3 -c '
+import json, sys
+topics = [t["TopicArn"] for t in json.load(sys.stdin).get("Topics", [])]
+expected_suffix = f":{sys.argv[1]}-alerts"
+matched = [t for t in topics if t.endswith(expected_suffix)]
+assert matched, f"Expected SNS topic ending with {expected_suffix}, got {topics}"
+print(f"SNS Topic verified: {matched[0]}")
+' "$NAME_PREFIX" <<< "$TOPICS_JSON"
+
 echo "ALL LOCAL FLOCI RESOURCE CHECKS PASSED"

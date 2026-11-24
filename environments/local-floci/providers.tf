@@ -30,6 +30,7 @@ provider "aws" {
     s3             = var.floci_endpoint
     cloudwatch     = var.floci_endpoint
     cloudwatchlogs = var.floci_endpoint
+    sns            = var.floci_endpoint
     ssm            = var.floci_endpoint
   }
 
