@@ -68,6 +68,12 @@ variable "auto_minor_version_upgrade" {
   default     = true
 }
 
+variable "iam_database_authentication_enabled" {
+  description = "Enable IAM database authentication on PostgreSQL."
+  type        = bool
+  default     = true
+}
+
 variable "enabled_cloudwatch_logs_exports" {
   description = "List of PostgreSQL log types to export to CloudWatch Logs (e.g. postgresql, upgrade)."
   type        = list(string)

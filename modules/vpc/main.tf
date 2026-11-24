@@ -8,6 +8,11 @@ resource "aws_vpc" "main" {
   }
 }
 
+# Lock down the VPC default security group (deny all ingress/egress).
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+}
+
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 

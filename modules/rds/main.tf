@@ -38,12 +38,14 @@ resource "aws_db_instance" "postgres" {
   publicly_accessible    = false
   multi_az               = var.multi_az
 
-  auto_minor_version_upgrade      = var.auto_minor_version_upgrade
-  enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports
-  backup_retention_period         = var.backup_retention_period
-  deletion_protection             = var.deletion_protection
-  skip_final_snapshot             = var.skip_final_snapshot
-  final_snapshot_identifier       = var.skip_final_snapshot ? null : "${var.name_prefix}-postgres-final-${random_id.final_snapshot[0].hex}"
+  auto_minor_version_upgrade          = var.auto_minor_version_upgrade
+  iam_database_authentication_enabled = var.iam_database_authentication_enabled
+  enabled_cloudwatch_logs_exports     = var.enabled_cloudwatch_logs_exports
+  copy_tags_to_snapshot               = true
+  backup_retention_period             = var.backup_retention_period
+  deletion_protection                 = var.deletion_protection
+  skip_final_snapshot                 = var.skip_final_snapshot
+  final_snapshot_identifier           = var.skip_final_snapshot ? null : "${var.name_prefix}-postgres-final-${random_id.final_snapshot[0].hex}"
 
   tags = {
     Name = "${var.name_prefix}-postgres"
