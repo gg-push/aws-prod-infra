@@ -1,0 +1,138 @@
+name: Terraform CI & Floci Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-validate:
+    name: Format, Validate & IaC Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.15.0"
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+
+      - name: Validate root modules
+        run: |
+          for dir in bootstrap environments/local-floci environments/staging environments/prod; do
+            echo "Validating $dir..."
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+          done
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Run TFLint
+        run: |
+          tflint --init
+          tflint --recursive
+
+      - name: Run Checkov IaC Security Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          config_file: .checkov.yml
+          soft_fail: false
+
+  floci-integration-test:
+    name: Local AWS Integration Test (Floci)
+    runs-on: ubuntu-latest
+    needs: lint-and-validate
+    services:
+      floci:
+        image: floci/floci:2.5.0
+        ports:
+          - 4566:4566
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        env:
+          FLOCI_HOSTNAME: localhost
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.15.0"
+
+      - name: Wait for Floci endpoint
+        run: |
+          for i in $(seq 1 30); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:4566/ || echo 000)"
+            case "$code" in
+              [234]*)
+                echo "Floci is ready (HTTP $code)"
+                exit 0
+                ;;
+            esac
+            sleep 1
+          done
+          echo "Floci timed out" >&2
+          exit 1
+
+      - name: Terraform Init & Apply (local-floci)
+        env:
+          TF_VAR_db_password: LocalCiTestPassword123!
+        run: |
+          terraform -chdir=environments/local-floci init -input=false
+          terraform -chdir=environments/local-floci apply -auto-approve -input=false
+
+      - name: Verify provisioned resources via AWS CLI
+        run: bash scripts/verify-local.sh
+
+      - name: Terraform Destroy (cleanup)
+        if: always()
+        env:
+          TF_VAR_db_password: LocalCiTestPassword123!
+        run: terraform -chdir=environments/local-floci destroy -auto-approve -input=false
+
+  aws-plan-staging:
+    name: AWS Staging Plan (OIDC)
+    runs-on: ubuntu-latest
+    needs: lint-and-validate
+    environment: staging
+    if: vars.AWS_ROLE_ARN != '' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.15.0"
+
+      - name: Terraform Init & Plan (staging)
+        env:
+          TF_VAR_db_password: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          terraform -chdir=environments/staging init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=staging/terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
+          terraform -chdir=environments/staging plan -no-color
