@@ -6,55 +6,7 @@ Production-ready, modular **Terraform** infrastructure provisioning a Multi-AZ V
 
 ## Architecture (`prod` High-Availability Topology)
 
-```mermaid
-flowchart TB
-    classDef public fill:#eff6ff,stroke:#1d4ed8,color:#0f172a
-    classDef private fill:#f0fdfa,stroke:#0f766e,color:#0f172a
-    classDef security fill:#fef3c7,stroke:#b45309,color:#0f172a
-    classDef platform fill:#f8fafc,stroke:#475569,color:#0f172a
-
-    subgraph Platform["CI/CD & Remote State"]
-        CI["GitHub Actions CI"] -->|Short-lived OIDC JWT| OIDC["IAM OIDC Provider + Scoped Role (bootstrap/)"]
-        CI -->|Atomic Lock: use_lockfile| State["S3 State Bucket (Versioned · AES-256 · TLS-only)"]
-    end
-
-    Users["Users (HTTP :80 / HTTPS :443)"] --> IGW["Internet Gateway"]
-
-    subgraph VPC["Multi-AZ VPC (10.x.0.0/16 · us-east-1a / us-east-1b)"]
-        subgraph Pub["Public Subnets"]
-            IGW --> ALB["Public ALB + alb-sg (:80/:443)"]
-            NAT["Per-AZ NAT Gateways"]
-        end
-
-        subgraph Priv["Private Subnets"]
-            AppSG["app-sg (:80 from alb-sg · Zero SSH :22)"]
-            ASG["EC2 ASG (2–4 t3.micro · IMDSv2 · gp3)"]
-            DBSG["db-sg (:5432 from app-sg only)"]
-            RDS["RDS PostgreSQL 16 (Multi-AZ · Secrets Manager)"]
-
-            ALB --> AppSG --> ASG -->|PostgreSQL :5432| DBSG --> RDS
-            ASG -.->|Outbound OS updates| NAT
-        end
-    end
-
-    subgraph Managed["AWS Managed Services"]
-        S3["S3 Assets Bucket (AES-256 · TLS-only · 90d lifecycle)"]
-        CW["CloudWatch (CW Agent · VPC Flow Logs · Alarms)"]
-        SNS["KMS-Encrypted SNS Alerts"]
-        SSM["AWS SSM Session Manager (Audited Shell)"]
-    end
-
-    ASG -->|Scoped IAM Profile| S3
-    ASG -->|Logs & Metrics| CW --> SNS
-    RDS -->|PG Logs & Alarms| CW
-    ALB -->|5XX & Target Health| CW
-    ASG -.->|Zero-Port Admin| SSM
-
-    class Users,IGW,ALB,NAT public
-    class AppSG,ASG,DBSG,RDS,S3 private
-    class OIDC,SSM,SNS security
-    class CI,State,CW platform
-```
+![AWS Production Architecture](./docs/architecture.svg)
 
 *Cost-saving note: `staging` and `local-floci` keep spend at **$0** by placing a single `t3.micro` instance in a public subnet with the ALB, NAT Gateway, and Multi-AZ RDS disabled.*
 
@@ -89,6 +41,7 @@ aws-prod-infra/
 ├── .github/workflows/terraform-ci.yml  # fmt, validate, TFLint, Checkov, Floci CI & OIDC staging plan
 ├── .tflint.hcl / .checkov.yml          # AWS TFLint ruleset & documented Checkov FinOps policy config
 ├── bootstrap/                          # Versioned TLS-only S3 state bucket + shared GitHub OIDC provider
+├── docs/architecture.svg               # High-level AWS production architecture diagram
 ├── environments/
 │   ├── local-floci/                    # Local Floci emulator target (localhost:4566)
 │   ├── staging/                        # AWS Free Tier target
