@@ -35,8 +35,10 @@ module "iam" {
 module "alerts" {
   source = "../../modules/alerts"
 
-  name_prefix = local.name_prefix
-  alarm_email = var.alarm_email
+  name_prefix           = local.name_prefix
+  account_id            = data.aws_caller_identity.current.account_id
+  enable_kms_encryption = false # FinOps: skip $1/mo KMS CMK in Free Tier staging
+  alarm_email           = var.alarm_email
 }
 
 module "rds" {
