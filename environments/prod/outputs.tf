@@ -28,6 +28,11 @@ output "alerts_topic_arn" {
   value       = module.alerts.topic_arn
 }
 
+output "dashboard_name" {
+  description = "CloudWatch operational dashboard name when enabled, else null."
+  value       = var.enable_dashboard ? aws_cloudwatch_dashboard.ops[0].dashboard_name : null
+}
+
 output "vpc_flow_log_group_name" {
   description = "CloudWatch Log Group name for VPC Flow Logs."
   value       = module.vpc.flow_log_group_name

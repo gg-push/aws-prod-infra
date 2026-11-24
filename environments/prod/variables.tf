@@ -76,6 +76,12 @@ variable "alarm_email" {
   default     = ""
 }
 
+variable "enable_dashboard" {
+  description = "Create a CloudWatch operational dashboard combining ALB, ASG, and RDS metrics."
+  type        = bool
+  default     = true
+}
+
 variable "asg_min_size" {
   description = "Minimum instance count for the production Auto Scaling Group."
   type        = number
