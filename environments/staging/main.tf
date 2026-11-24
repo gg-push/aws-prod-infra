@@ -31,6 +31,11 @@ module "iam" {
   github_repo               = var.github_repo
   github_oidc_subjects      = length(var.github_oidc_subjects) > 0 ? var.github_oidc_subjects : ["repo:${var.github_repo}:ref:refs/heads/main", "repo:${var.github_repo}:environment:staging"]
   state_bucket_name         = var.state_bucket_name
+  enable_rds_secret_access  = var.manage_master_user_password
+  db_secret_arn             = var.manage_master_user_password ? module.rds.master_user_secret_arn : ""
+  enable_rds_iam_auth       = true
+  db_resource_id            = module.rds.db_resource_id
+  db_username               = var.db_username
 }
 
 module "alerts" {

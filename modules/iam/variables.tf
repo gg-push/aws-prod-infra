@@ -65,3 +65,33 @@ variable "state_bucket_name" {
   type        = string
   default     = ""
 }
+
+variable "enable_rds_secret_access" {
+  description = "Grant the EC2 instance role read access to the RDS Secrets Manager secret."
+  type        = bool
+  default     = false
+}
+
+variable "db_secret_arn" {
+  description = "Secrets Manager ARN for the RDS master user password (used when enable_rds_secret_access is true)."
+  type        = string
+  default     = ""
+}
+
+variable "enable_rds_iam_auth" {
+  description = "Grant the EC2 instance role rds-db:connect permission scoped to the RDS resource ID."
+  type        = bool
+  default     = false
+}
+
+variable "db_resource_id" {
+  description = "RDS DbiResourceId used to scope rds-db:connect permissions."
+  type        = string
+  default     = ""
+}
+
+variable "db_username" {
+  description = "Database username allowed for IAM database authentication."
+  type        = string
+  default     = "appadmin"
+}

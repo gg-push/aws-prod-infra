@@ -3,6 +3,11 @@ output "db_instance_id" {
   value       = aws_db_instance.postgres.identifier
 }
 
+output "db_resource_id" {
+  description = "RDS DbiResourceId used to scope IAM database authentication policies."
+  value       = aws_db_instance.postgres.resource_id
+}
+
 output "db_endpoint" {
   description = "PostgreSQL connection endpoint (host:port)."
   value       = aws_db_instance.postgres.endpoint

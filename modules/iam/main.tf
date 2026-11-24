@@ -66,6 +66,28 @@ data "aws_iam_policy_document" "ec2_app" {
     actions   = ["logs:DescribeLogGroups"]
     resources = ["arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:*"]
   }
+
+  dynamic "statement" {
+    for_each = var.enable_rds_secret_access ? [1] : []
+
+    content {
+      sid       = "ScopedRDSSecretRead"
+      effect    = "Allow"
+      actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+      resources = [var.db_secret_arn]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_rds_iam_auth ? [1] : []
+
+    content {
+      sid       = "ScopedRDSIAMConnect"
+      effect    = "Allow"
+      actions   = ["rds-db:connect"]
+      resources = ["arn:aws:rds-db:${var.aws_region}:${local.account_id}:dbuser:${var.db_resource_id}/${var.db_username}"]
+    }
+  }
 }
 
 resource "aws_iam_policy" "ec2_app" {
@@ -172,10 +194,11 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "iam:DeleteRole",
       "iam:UpdateRole*",
       "iam:UpdateAssumeRolePolicy",
+      "iam:GetRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
       "iam:TagRole",
       "iam:UntagRole",
-      "iam:AttachRolePolicy",
-      "iam:DetachRolePolicy",
       "iam:CreatePolicy",
       "iam:DeletePolicy",
       "iam:CreatePolicyVersion",
@@ -194,6 +217,27 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}-*",
       "arn:aws:iam::${local.account_id}:instance-profile/${var.name_prefix}-*",
     ]
+  }
+
+  statement {
+    sid    = "ScopedIAMAttachPolicy"
+    effect = "Allow"
+    actions = [
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+    ]
+    resources = [
+      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-*",
+    ]
+
+    condition {
+      test     = "ArnLike"
+      variable = "iam:PolicyARN"
+      values = [
+        "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}-*",
+        "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+      ]
+    }
   }
 
   statement {
@@ -305,6 +349,40 @@ data "aws_iam_policy_document" "github_actions_deploy" {
     resources = [
       "arn:aws:cloudwatch:${var.aws_region}:${local.account_id}:alarm:${var.name_prefix}-*",
     ]
+  }
+
+  statement {
+    sid    = "ScopedCloudWatchDashboardManage"
+    effect = "Allow"
+    actions = [
+      "cloudwatch:PutDashboard",
+      "cloudwatch:GetDashboard",
+      "cloudwatch:DeleteDashboards",
+    ]
+    resources = [
+      "arn:aws:cloudwatch::${local.account_id}:dashboard/${var.name_prefix}-*",
+    ]
+  }
+
+  statement {
+    sid    = "ScopedKMSManage"
+    effect = "Allow"
+    actions = [
+      "kms:CreateKey",
+      "kms:DescribeKey",
+      "kms:GetKeyPolicy",
+      "kms:PutKeyPolicy",
+      "kms:EnableKeyRotation",
+      "kms:GetKeyRotationStatus",
+      "kms:ScheduleKeyDeletion",
+      "kms:TagResource",
+      "kms:UntagResource",
+      "kms:ListResourceTags",
+      "kms:CreateAlias",
+      "kms:DeleteAlias",
+      "kms:ListAliases",
+    ]
+    resources = ["*"]
   }
 
   statement {
