@@ -1,13 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-dnf -y install nginx
+install_pkg() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if dnf -y install "$@"; then
+      return 0
+    fi
+    sleep 5
+  done
+  echo "Failed to install packages after retries: $*" >&2
+  return 1
+}
+
+install_pkg nginx
+
+IMDS_TOKEN="$(curl -sS --max-time 2 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)"
+if [ -n "$IMDS_TOKEN" ]; then
+  INSTANCE_ID="$(curl -sS --max-time 2 -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" "http://169.254.169.254/latest/meta-data/instance-id" || echo "unknown")"
+  AZ="$(curl -sS --max-time 2 -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" "http://169.254.169.254/latest/meta-data/placement/availability-zone" || echo "unknown")"
+else
+  INSTANCE_ID="unknown"
+  AZ="unknown"
+fi
 
 install -d -m 0750 -o root -g root /etc/app
-cat <<'EOF' > /etc/app/runtime.env
+cat <<EOF > /etc/app/runtime.env
 ENVIRONMENT="${environment}"
 SERVICE_NAME="${name_prefix}"
 DB_ENDPOINT="${db_endpoint}"
+INSTANCE_ID="$INSTANCE_ID"
+AVAILABILITY_ZONE="$AZ"
 EOF
 chmod 0600 /etc/app/runtime.env
 
@@ -28,12 +51,15 @@ http {
     keepalive_timeout 65;
     server_tokens off;
 
+    log_format json_combined escape=json '{"time":"$time_iso8601","remote_addr":"$remote_addr","method":"$request_method","uri":"$request_uri","status":$status,"request_time":$request_time,"bytes":$body_bytes_sent}';
+    access_log /var/log/nginx/access.log json_combined;
+
     include /etc/nginx/conf.d/*.conf;
 }
 EOF
 
 rm -f /etc/nginx/conf.d/default.conf
-cat <<'EOF' > /etc/nginx/conf.d/app.conf
+cat <<EOF > /etc/nginx/conf.d/app.conf
 server {
     listen 80 default_server;
     server_name _;
@@ -42,12 +68,12 @@ server {
     location = /healthz {
         access_log off;
         default_type application/json;
-        return 200 '{"status":"ok","env":"${environment}","service":"${name_prefix}"}';
+        return 200 '{"status":"ok","env":"${environment}","service":"${name_prefix}","instance_id":"$INSTANCE_ID","az":"$AZ"}';
     }
 
     location / {
         default_type application/json;
-        return 200 '{"message":"${name_prefix} web tier online"}';
+        return 200 '{"message":"${name_prefix} web tier online","instance_id":"$INSTANCE_ID","az":"$AZ"}';
     }
 }
 EOF
@@ -56,7 +82,7 @@ nginx -t
 systemctl enable --now nginx
 
 if [ "${enable_cloudwatch_agent}" = "true" ]; then
-  dnf -y install amazon-cloudwatch-agent
+  install_pkg amazon-cloudwatch-agent
   install -d -m 0755 /opt/aws/amazon-cloudwatch-agent/etc
   cat <<'CWCFG' > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 {
