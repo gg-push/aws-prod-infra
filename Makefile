@@ -1,4 +1,4 @@
-.PHONY: floci-up floci-down fmt validate-all lock-providers init-local plan-local apply-local verify-local destroy-local clean
+.PHONY: floci-up floci-down fmt validate-all test lock-providers init-local plan-local apply-local verify-local destroy-local clean
 
 TF_LOCAL_DIR := environments/local-floci
 DB_PASS      ?= LocalDevPass123!
@@ -27,6 +27,14 @@ validate-all:
 		echo "=== Validating $$dir ==="; \
 		terraform -chdir=$$dir init -backend=false -input=false >/dev/null && \
 		terraform -chdir=$$dir validate; \
+	done
+
+test:
+	@mkdir -p "$${TF_PLUGIN_CACHE_DIR:-/tmp/tf-plugin-cache}"
+	@for dir in modules/vpc modules/alb modules/compute modules/rds modules/alerts environments/prod environments/staging; do \
+		echo "=== Testing $$dir ==="; \
+		TF_PLUGIN_CACHE_DIR="$${TF_PLUGIN_CACHE_DIR:-/tmp/tf-plugin-cache}" terraform -chdir=$$dir init -backend=false -input=false >/dev/null && \
+		terraform -chdir=$$dir test; \
 	done
 
 lock-providers:
