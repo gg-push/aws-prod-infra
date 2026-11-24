@@ -51,5 +51,4 @@ destroy-local:
 	TF_VAR_db_password="$(DB_PASS)" terraform -chdir=$(TF_LOCAL_DIR) destroy -auto-approve -input=false
 
 clean:
-	find . -type d -name ".terraform" -prune -exec rm -rf {} +
-	find . -type f -name "*.tfstate*" -delete
+	rm -rf $(TF_LOCAL_DIR)/.terraform $(TF_LOCAL_DIR)/*.tfstate*
