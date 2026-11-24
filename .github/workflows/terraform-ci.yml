@@ -3,7 +3,13 @@ name: Terraform CI & Floci Integration
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
   workflow_dispatch:
 
 permissions:
