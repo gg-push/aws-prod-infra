@@ -18,6 +18,7 @@ resource "random_id" "final_snapshot" {
 }
 
 resource "aws_db_instance" "postgres" {
+  # checkov:skip=CKV_AWS_293:Enabled in prod (deletion_protection=true); disabled in Free Tier staging to allow $0 teardown.
   identifier     = "${var.name_prefix}-postgres"
   engine         = "postgres"
   engine_version = var.engine_version

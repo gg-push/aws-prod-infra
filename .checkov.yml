@@ -26,26 +26,7 @@ skip-check:
   - CKV2_AWS_28
   # Nitro instances (t3.micro) are EBS-optimized by default.
   - CKV_AWS_135
-  # Terraform CI OIDC deploy role requires EC2/ALB/ASG API actions; iam:PassRole is strictly scoped to EC2 & VPC Flow Logs roles.
-  - CKV_AWS_107
-  - CKV_AWS_108
-  - CKV_AWS_109
-  - CKV_AWS_110
-  - CKV_AWS_111
-  - CKV_AWS_356
-  # Checkov module-level evaluation flags Free Tier staging defaults (public EC2 IP without NAT, 5-min monitoring, deletion_protection=false); prod hardens all of these.
-  - CKV_AWS_88
-  - CKV_AWS_126
-  - CKV_AWS_130
-  - CKV_AWS_293
   # Checkov cross-module graph limitation: SGs are created in modules/vpc and attached in modules/{alb,compute,rds}.
   - CKV2_AWS_5
-  # TLS terminates at the ALB when acm_certificate_arn is set (redirecting HTTP:80 -> HTTPS:443); internal ALB->EC2 target group hop uses HTTP:80 inside private subnets.
-  - CKV_AWS_2
-  - CKV_AWS_103
-  - CKV_AWS_378
-  - CKV2_AWS_20
   # FinOps: CloudWatch Log retention set to 14d (staging) / 30d (prod) rather than >= 365 days.
   - CKV_AWS_338
-  # Intentional public HTTP/HTTPS ingress on ALB (prod) and staging web SG.
-  - CKV_AWS_260

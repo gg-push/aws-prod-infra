@@ -7,6 +7,9 @@ locals {
 }
 
 data "aws_iam_policy_document" "sns_kms" {
+  # checkov:skip=CKV_AWS_109:KMS resource key policies must reference "*" (the CMK itself); scoped via account root + SourceAccount condition.
+  # checkov:skip=CKV_AWS_111:KMS resource key policies must reference "*" (the CMK itself); CloudWatch access is limited to Decrypt/GenerateDataKey*.
+  # checkov:skip=CKV_AWS_356:AWS KMS key policy specification requires Resource="*".
   count = var.enable_kms_encryption ? 1 : 0
 
   statement {

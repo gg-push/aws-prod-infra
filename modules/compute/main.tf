@@ -124,6 +124,7 @@ resource "aws_cloudwatch_log_group" "app" {
 }
 
 resource "aws_instance" "app" {
+  # checkov:skip=CKV_AWS_126:Detailed 1-min monitoring is enabled on prod ASG; omitted on standalone Free Tier staging EC2.
   count = var.enable_asg ? 0 : 1
 
   ami                         = local.ami_id

@@ -26,6 +26,7 @@ resource "aws_internet_gateway" "main" {
 }
 
 resource "aws_subnet" "public" {
+  # checkov:skip=CKV_AWS_130:Disabled in prod (map_public_ip_on_launch=false); enabled only in Free Tier staging without NAT Gateway.
   count = length(var.availability_zones)
 
   vpc_id                  = aws_vpc.main.id
@@ -159,6 +160,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
+  # checkov:skip=CKV_AWS_260:Public HTTP:80 ingress on ALB (redirects to HTTPS:443 when acm_certificate_arn is provided).
   for_each = var.enable_alb ? toset(var.allowed_ingress_cidrs) : toset([])
 
   security_group_id = aws_security_group.alb[0].id
@@ -207,6 +209,7 @@ resource "aws_security_group" "app" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "app_http" {
+  # checkov:skip=CKV_AWS_260:Staging standalone web ingress on port 80 (prod restricts app-sg port 80 strictly to alb-sg).
   for_each = var.enable_alb ? toset([]) : toset(var.allowed_ingress_cidrs)
 
   security_group_id = aws_security_group.app.id
@@ -218,6 +221,7 @@ resource "aws_vpc_security_group_ingress_rule" "app_http" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "app_http_from_alb" {
+  # checkov:skip=CKV_AWS_260:Restricted strictly to referenced alb-sg security group ID (no 0.0.0.0/0 CIDR).
   count = var.enable_alb ? 1 : 0
 
   security_group_id            = aws_security_group.app.id

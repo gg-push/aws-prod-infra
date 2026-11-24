@@ -1,4 +1,5 @@
 resource "aws_lb" "main" {
+  # checkov:skip=CKV2_AWS_20:HTTP->HTTPS 301 redirect listener activates automatically when acm_certificate_arn is set.
   name                       = trim(substr("${var.name_prefix}-alb", 0, 32), "-")
   internal                   = false
   load_balancer_type         = "application"
@@ -13,6 +14,7 @@ resource "aws_lb" "main" {
 }
 
 resource "aws_lb_target_group" "app" {
+  # checkov:skip=CKV_AWS_378:Internal ALB-to-EC2 target group hop uses HTTP:80 inside private subnets after ALB TLS termination.
   name_prefix = "app-"
   port        = 80
   protocol    = "HTTP"
@@ -40,6 +42,8 @@ resource "aws_lb_target_group" "app" {
 }
 
 resource "aws_lb_listener" "http_forward" {
+  # checkov:skip=CKV_AWS_2:Used only when acm_certificate_arn is unset; setting acm_certificate_arn enforces TLS 1.3 + HTTP->HTTPS redirect.
+  # checkov:skip=CKV_AWS_103:TLS policy applies on aws_lb_listener.https (TLS 1.3); this listener is omitted once acm_certificate_arn is provided.
   count = var.acm_certificate_arn == "" ? 1 : 0
 
   load_balancer_arn = aws_lb.main.arn
