@@ -1,0 +1,11 @@
+aws_region            = "us-east-1"
+allowed_ingress_cidrs = ["0.0.0.0/0"]
+single_nat_gateway    = false # true = 1 NAT (~$32/mo); false = 1 NAT per AZ for HA
+instance_type         = "t3.micro"
+db_instance_class     = "db.t3.micro"
+db_name               = "appdb"
+db_username           = "appadmin"
+# acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+# alarm_email         = "ops@example.com"
+# manage_master_user_password = true by default in prod (AWS Secrets Manager).
+# Only set TF_VAR_db_password if overriding manage_master_user_password = false.
