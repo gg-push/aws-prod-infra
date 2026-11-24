@@ -1,3 +1,7 @@
+data "aws_region" "current" {
+  count = var.enable_s3_endpoint ? 1 : 0
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -123,6 +127,20 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[count.index].id
 }
 
+# FinOps + Security: S3 Gateway VPC Endpoints are free ($0/hr, $0/GB) and keep S3 traffic off the paid NAT Gateway.
+resource "aws_vpc_endpoint" "s3" {
+  count = var.enable_s3_endpoint ? 1 : 0
+
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current[0].name}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
+
+  tags = {
+    Name = "${var.name_prefix}-s3-endpoint"
+  }
+}
+
 # Optional public ALB security group (3-tier chaining: Internet -> alb-sg -> app-sg -> db-sg).
 resource "aws_security_group" "alb" {
   count = var.enable_alb ? 1 : 0
@@ -173,10 +191,10 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
   ip_protocol                  = "tcp"
 }
 
-# App tier SG: HTTP/HTTPS only, zero SSH port 22 (shell access uses AWS SSM Session Manager).
+# App tier SG: HTTP only, zero SSH port 22 (shell access uses AWS SSM Session Manager).
 resource "aws_security_group" "app" {
   name_prefix = "${var.name_prefix}-app-sg-"
-  description = "Allow HTTP/HTTPS ingress to app tier without exposing SSH"
+  description = "Allow HTTP ingress to app tier without exposing SSH"
   vpc_id      = aws_vpc.main.id
 
   tags = {
@@ -196,17 +214,6 @@ resource "aws_vpc_security_group_ingress_rule" "app_http" {
   cidr_ipv4         = each.value
   from_port         = 80
   to_port           = 80
-  ip_protocol       = "tcp"
-}
-
-resource "aws_vpc_security_group_ingress_rule" "app_https" {
-  for_each = var.enable_alb ? toset([]) : toset(var.allowed_ingress_cidrs)
-
-  security_group_id = aws_security_group.app.id
-  description       = "HTTPS ingress"
-  cidr_ipv4         = each.value
-  from_port         = 443
-  to_port           = 443
   ip_protocol       = "tcp"
 }
 

@@ -65,10 +65,10 @@ for perm in app_sg.get("IpPermissions", []):
     fp, tp = perm.get("FromPort"), perm.get("ToPort")
     if fp is not None and tp is not None:
         assert not (fp <= 22 <= tp), f"app-sg must not expose SSH port 22: {perm}"
-        for p in (80, 443):
-            if fp <= p <= tp:
-                app_ports.add(p)
-assert app_ports == {80, 443}, f"Expected app-sg ports 80 and 443, got {sorted(app_ports)}"
+        assert not (fp <= 443 <= tp), f"app-sg must not expose unused HTTPS port 443: {perm}"
+        for p in range(fp, tp + 1):
+            app_ports.add(p)
+assert app_ports == {80}, f"Expected app-sg port 80 only, got {sorted(app_ports)}"
 
 db_perms = db_sg.get("IpPermissions", [])
 has_5432_from_app = False
@@ -80,7 +80,7 @@ for perm in db_perms:
         if app_id in pairs:
             has_5432_from_app = True
 assert has_5432_from_app, "db-sg must allow TCP 5432 strictly from app-sg"
-print(f"Verified app-sg ({app_id}) [no SSH :22, allows 80/443] & db-sg ({db_id}) [:5432 from app-sg only]")
+print(f"Verified app-sg ({app_id}) [no SSH :22 or :443, allows :80 only] & db-sg ({db_id}) [:5432 from app-sg only]")
 ' "$NAME_PREFIX" <<< "$SGS_JSON"
 
 echo "=== 4. Verifying EC2 Instance & IMDSv2 ==="

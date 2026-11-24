@@ -3,6 +3,11 @@ output "vpc_id" {
   value       = module.vpc.vpc_id
 }
 
+output "s3_endpoint_id" {
+  description = "Free S3 Gateway VPC Endpoint ID for private subnets."
+  value       = module.vpc.s3_endpoint_id
+}
+
 output "nat_gateway_public_ips" {
   description = "Egress NAT Gateway public IPs across AZs."
   value       = module.vpc.nat_gateway_public_ips

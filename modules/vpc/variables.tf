@@ -66,3 +66,9 @@ variable "allowed_ingress_cidrs" {
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
+
+variable "enable_s3_endpoint" {
+  description = "Create a free S3 Gateway VPC Endpoint on private route tables to bypass NAT Gateway data charges."
+  type        = bool
+  default     = false
+}

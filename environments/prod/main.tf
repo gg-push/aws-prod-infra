@@ -16,6 +16,7 @@ module "vpc" {
   single_nat_gateway      = var.single_nat_gateway
   enable_alb              = true
   enable_flow_logs        = true
+  enable_s3_endpoint      = true
   map_public_ip_on_launch = false
   allowed_ingress_cidrs   = var.allowed_ingress_cidrs
 }

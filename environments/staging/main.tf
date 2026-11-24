@@ -13,6 +13,7 @@ module "vpc" {
   vpc_cidr                = var.vpc_cidr
   availability_zones      = var.availability_zones
   enable_nat_gateway      = false # FinOps: $0 idle NAT cost in staging/Free Tier
+  enable_s3_endpoint      = true
   map_public_ip_on_launch = true
   allowed_ingress_cidrs   = var.allowed_ingress_cidrs
 }
