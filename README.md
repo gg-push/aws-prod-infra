@@ -30,7 +30,7 @@ Production-ready, modular **Terraform** infrastructure provisioning a Multi-AZ V
 - **IMDSv2, Encryption & TLS-Only S3:** EC2/Launch Templates enforce `http_tokens = "required"` and fetch instance ID/AZ via IMDSv2 at boot (`user_data.sh.tftpl`) with `dnf` retry resilience and structured JSON Nginx logs; EBS (`gp3`), RDS, S3, and production SNS alerts (customer-managed rotating KMS key permitting CloudWatch `kms:GenerateDataKey*`) enforce encryption at rest; S3 buckets block public access, deny non-HTTPS requests (`aws:SecureTransport = false`), and expire noncurrent versions after 90 days.
 - **Keyless CI/CD & Least-Privilege IAM:** Account-wide GitHub OIDC provider lives in `bootstrap/`, trust policies use `StringEquals` on exact branch/environment subjects, `iam:PassRole` and `iam:AttachRolePolicy` are constrained strictly to repo-prefixed resources/SSM policy, and EC2 receives scoped `secretsmanager:GetSecretValue` + `rds-db:connect` permissions.
 - **Secrets & Safe Replacements:** Production RDS delegates master password generation/rotation to **AWS Secrets Manager** (`manage_master_user_password = true`); security groups use `name_prefix` + `create_before_destroy`, EC2 ignores routine AMI drift, and RDS snapshots use `random_id` suffixes.
-- **Strict Testing & CI Gates:** GitHub Actions enforces `terraform fmt`, `validate`, 15 native mocked `terraform test` contracts across all 5 modules + `prod`/`staging`, `tflint` (`.tflint.hcl`), `checkov` with targeted inline resource annotations (`.checkov.yml`), committed `.terraform.lock.hcl` lockfiles, and live Floci integration tests (39 resources, zero-drift re-plan verification, and 10 AWS CLI assertions).
+- **Strict Testing & CI Gates:** GitHub Actions enforces `terraform fmt`, `validate`, 17 native mocked `terraform test` contracts across all 6 modules + `prod`/`staging`, `tflint` (`.tflint.hcl`), `checkov` with targeted inline resource annotations (`.checkov.yml`), committed `.terraform.lock.hcl` lockfiles, and live Floci integration tests (39 resources, zero-drift re-plan verification, and 10 AWS CLI assertions).
 
 ---
 
@@ -48,7 +48,7 @@ aws-prod-infra/
 │   └── prod/ (+ observability.tf, tests/) # Production Multi-AZ HA target, CW dashboard & HA tests
 ├── modules/
 │   ├── vpc/ (+ tests/)                 # Multi-AZ VPC, S3 Gateway endpoint, NAT, 3-tier SGs & Flow Logs
-│   ├── iam/                            # Scoped EC2 profile (S3/CW/Secrets/RDS IAM), SSM & OIDC deploy role
+│   ├── iam/ (+ tests/)                 # Scoped EC2 profile (S3/CW/Secrets/RDS IAM), SSM & OIDC deploy role
 │   ├── alb/ (+ tests/)                 # Public ALB, /healthz TG, TLS 1.3 listener & 5XX/health alarms
 │   ├── alerts/ (+ tests/)              # Rotating KMS CMK + scoped SNS topic policy & alarms subscription
 │   ├── compute/ (+ tests/)             # EC2 / ASG (IMDSv2 JSON bootstrap, gp3, CW Agent), S3 & alarms
@@ -67,7 +67,7 @@ Requires Docker, Terraform `>= 1.10`, Python 3, and AWS CLI v2.
 ```bash
 make floci-up                                  # Start Floci emulator on :4566
 make validate-all                              # Check formatting & validate all 4 root configs
-make test                                      # Run all 15 mocked Terraform unit & contract tests
+make test                                      # Run all 17 mocked Terraform unit & contract tests
 make apply-local && make verify-local          # Provision 39 resources & run 10 security assertions
 make destroy-local && make floci-down          # Tear down resources & stop Docker
 ```

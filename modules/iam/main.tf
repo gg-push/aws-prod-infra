@@ -199,9 +199,6 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "iam:DeleteRole",
       "iam:UpdateRole*",
       "iam:UpdateAssumeRolePolicy",
-      "iam:GetRolePolicy",
-      "iam:PutRolePolicy",
-      "iam:DeleteRolePolicy",
       "iam:TagRole",
       "iam:UntagRole",
       "iam:CreatePolicy",
@@ -218,9 +215,23 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "iam:UntagInstanceProfile",
     ]
     resources = [
-      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-*",
-      "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}-*",
-      "arn:aws:iam::${local.account_id}:instance-profile/${var.name_prefix}-*",
+      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-ec2-role",
+      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-vpc-flow-logs-role",
+      "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}-ec2-app-policy",
+      "arn:aws:iam::${local.account_id}:instance-profile/${var.name_prefix}-ec2-profile",
+    ]
+  }
+
+  statement {
+    sid    = "ScopedFlowLogsInlinePolicyManage"
+    effect = "Allow"
+    actions = [
+      "iam:GetRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+    ]
+    resources = [
+      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-vpc-flow-logs-role",
     ]
   }
 
@@ -232,14 +243,14 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "iam:DetachRolePolicy",
     ]
     resources = [
-      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-*",
+      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-ec2-role",
     ]
 
     condition {
       test     = "ArnLike"
       variable = "iam:PolicyARN"
       values = [
-        "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}-*",
+        "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}-ec2-app-policy",
         "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
       ]
     }
@@ -252,6 +263,7 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "s3:CreateBucket",
       "s3:DeleteBucket",
       "s3:ListBucket",
+      "s3:ListBucketVersions",
       "s3:GetBucket*",
       "s3:PutBucket*",
       "s3:DeleteBucketPolicy",
@@ -262,6 +274,7 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "s3:GetObject",
       "s3:PutObject",
       "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
     ]
     resources = [
       "arn:aws:s3:::${var.app_bucket_name}",

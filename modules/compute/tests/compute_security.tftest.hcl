@@ -33,6 +33,11 @@ run "compute_prod_asg" {
     condition     = aws_launch_template.app[0].metadata_options[0].http_tokens == "required" && tostring(aws_launch_template.app[0].block_device_mappings[0].ebs[0].encrypted) == "true" && aws_launch_template.app[0].block_device_mappings[0].ebs[0].volume_type == "gp3"
     error_message = "Launch template must enforce IMDSv2 and encrypted gp3 root storage."
   }
+
+  assert {
+    condition     = aws_autoscaling_group.app[0].metrics_granularity == "1Minute" && contains(aws_autoscaling_group.app[0].enabled_metrics, "GroupInServiceInstances")
+    error_message = "Prod ASG must enable 1-minute GroupInServiceInstances metrics for the ops dashboard."
+  }
 }
 
 run "compute_staging_ec2" {

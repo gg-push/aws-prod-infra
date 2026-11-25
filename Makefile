@@ -31,7 +31,7 @@ validate-all:
 
 test:
 	@mkdir -p "$${TF_PLUGIN_CACHE_DIR:-/tmp/tf-plugin-cache}"
-	@for dir in modules/vpc modules/alb modules/compute modules/rds modules/alerts environments/prod environments/staging; do \
+	@for dir in modules/vpc modules/iam modules/alb modules/compute modules/rds modules/alerts environments/prod environments/staging; do \
 		echo "=== Testing $$dir ==="; \
 		TF_PLUGIN_CACHE_DIR="$${TF_PLUGIN_CACHE_DIR:-/tmp/tf-plugin-cache}" terraform -chdir=$$dir init -backend=false -input=false >/dev/null && \
 		terraform -chdir=$$dir test; \

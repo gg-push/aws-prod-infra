@@ -231,10 +231,19 @@ resource "aws_autoscaling_group" "app" {
   max_size                  = var.asg_max_size
   health_check_type         = length(var.target_group_arns) > 0 ? "ELB" : "EC2"
   health_check_grace_period = 300
+  metrics_granularity       = "1Minute"
+  enabled_metrics = [
+    "GroupDesiredCapacity",
+    "GroupInServiceInstances",
+    "GroupPendingInstances",
+    "GroupStandbyInstances",
+    "GroupTerminatingInstances",
+    "GroupTotalInstances",
+  ]
 
   launch_template {
     id      = aws_launch_template.app[0].id
-    version = "$Latest"
+    version = aws_launch_template.app[0].latest_version
   }
 
   instance_refresh {
